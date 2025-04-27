@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreador de Aeronaves</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        .aircraft-info {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .aircraft-count {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .last-update {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .area-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .telemetry-info {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            font-size: 14px;
+        }
+        .telemetry-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #d32f2f;
+        }
+        .aircraft-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            transform-origin: center;
+        }
+        .telemetry-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            transform-origin: center;
+        }
+        .center-button {
+            position: absolute;
+            bottom: 20px;
+            right: 10px;
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+        .center-button:hover {
+            background-color: #b71c1c;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info-panel">
+        <div class="aircraft-count">Carregando dados...</div>
+        <div class="last-update"></div>
+        <div class="area-info"></div>
+        <div class="telemetry-info" style="display: none;">
+            <div class="telemetry-title">Dados de Telemetria MAVLink</div>
+            <div class="telemetry-position"></div>
+            <div class="telemetry-altitude"></div>
+            <div class="telemetry-heading"></div>
+            <div class="telemetry-speed"></div>
+            <div class="telemetry-satellites"></div>
+            <div class="telemetry-battery"></div>
+        </div>
+    </div>
+    <button class="center-button" id="centerButton" style="display: none;">Centralizar no Dispositivo</button>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Coordenadas iniciais (região de São Paulo)
+        const initialView = {
+            center: [(-23.607475903452663 + -24.270974395948752) / 2,
+                    (-46.48307030043036 + -46.97940265774286) / 2],
+            bounds: [
+                [-24.270974395948752, -46.97940265774286], // Sudoeste (min lat, min lon)
+                [-23.607475903452663, -46.48307030043036]  // Nordeste (max lat, max lon)
+            ]
+        };
+
+        // Inicializar o mapa com as coordenadas iniciais
+        const map = L.map('map').fitBounds(initialView.bounds);
+
+        // Adicionar camada de mapa base
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Objeto para armazenar os marcadores das aeronaves
+        const aircraftMarkers = {};
+        
+        // Marcador para os dados de telemetria
+        let telemetryMarker = null;
+
+        // Variável para controlar o tempo de debounce
+        let debounceTimer;
+        
+        // Variável para controlar se o mapa deve ser centralizado na posição de telemetria
+        let centerOnTelemetry = true;
+        
+        // Variável para armazenar os últimos dados de telemetria
+        let lastTelemetryData = null;
+
+        // Função para criar um ícone de aeronave
+        function createAircraftIcon(heading) {
+            return L.divIcon({
+                className: 'aircraft-marker',
+                html: `<svg width="24" height="24" viewBox="0 0 24 24" fill="#3388ff" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(${heading}deg);">
+                        <path d="M12,2L4,22h16L12,2z" stroke="#000" stroke-width="1"/>
+                      </svg>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+        }
+        
+        // Função para criar um ícone de telemetria (triângulo vermelho)
+        function createTelemetryIcon(heading) {
+            return L.divIcon({
+                className: 'telemetry-marker',
+                html: `<svg width="32" height="32" viewBox="0 0 24 24" fill="#d32f2f" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(${heading}deg);">
+                        <path d="M12,2L4,22h16L12,2z" stroke="#000" stroke-width="2"/>
+                      </svg>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+        }
+
+        // Função para atualizar os dados das aeronaves
+        function updateAircraftData() {
+            const bounds = map.getBounds();
+            const bbox = {
+                min_latitude: bounds.getSouth(),
+                min_longitude: bounds.getWest(),
+                max_latitude: bounds.getNorth(),
+                max_longitude: bounds.getEast()
+            };
+
+            // Atualizar a informação da área no painel
+            document.querySelector('.area-info').textContent =
+                `Área: ${bbox.min_latitude.toFixed(4)},${bbox.min_longitude.toFixed(4)} a ${bbox.max_latitude.toFixed(4)},${bbox.max_longitude.toFixed(4)}`;
+
+            fetch('/api/v1/aircraft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(bbox)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Atualizar o contador de aeronaves
+                document.querySelector('.aircraft-count').textContent = `Aeronaves visíveis: ${data.length}`;
+                
+                // Atualizar a hora da última atualização
+                const now = new Date();
+                document.querySelector('.last-update').textContent = `Última atualização: ${now.toLocaleTimeString()}`;
+                
+                // Conjunto para rastrear aeronaves atualizadas
+                const updatedAircrafts = new Set();
+                
+                // Atualizar ou adicionar marcadores para cada aeronave
+                data.forEach(aircraft => {
+                    // Ignorar aeronaves sem coordenadas válidas
+                    if (!aircraft.latitude || !aircraft.longitude) return;
+                    
+                    // Adicionar ao conjunto de aeronaves atualizadas
+                    updatedAircrafts.add(aircraft.icao24);
+                    
+                    // Criar ou atualizar o marcador
+                    if (aircraftMarkers[aircraft.icao24]) {
+                        // Atualizar posição do marcador existente
+                        aircraftMarkers[aircraft.icao24].setLatLng([aircraft.latitude, aircraft.longitude]);
+                        
+                        // Atualizar a rotação do ícone se houver informação de direção
+                        if (aircraft.true_track !== null) {
+                            aircraftMarkers[aircraft.icao24].setIcon(createAircraftIcon(aircraft.true_track));
+                        }
+                        
+                        // Atualizar o popup
+                        aircraftMarkers[aircraft.icao24].getPopup().setContent(createPopupContent(aircraft));
+                    } else {
+                        // Criar um novo marcador
+                        const marker = L.marker([aircraft.latitude, aircraft.longitude], {
+                            icon: createAircraftIcon(aircraft.true_track || 0)
+                        }).addTo(map);
+                        
+                        // Adicionar popup com informações
+                        marker.bindPopup(createPopupContent(aircraft));
+                        
+                        // Armazenar o marcador
+                        aircraftMarkers[aircraft.icao24] = marker;
+                    }
+                });
+                
+                // Remover marcadores de aeronaves que não estão mais presentes
+                Object.keys(aircraftMarkers).forEach(icao24 => {
+                    if (!updatedAircrafts.has(icao24)) {
+                        map.removeLayer(aircraftMarkers[icao24]);
+                        delete aircraftMarkers[icao24];
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Erro ao buscar dados das aeronaves:', error);
+                document.querySelector('.aircraft-count').textContent = 'Erro ao carregar dados';
+            });
+        }
+        
+        // Função para atualizar os dados de telemetria
+        function updateTelemetryData() {
+            fetch('/api/v1/telemetry')
+                .then(response => response.json())
+                .then(data => {
+                    // Verificar se temos dados válidos
+                    if (!data || !data.lat || !data.lon) {
+                        return;
+                    }
+                    
+                    // Armazenar os dados de telemetria
+                    lastTelemetryData = data;
+                    
+                    // Mostrar o painel de telemetria e o botão de centralizar
+                    document.querySelector('.telemetry-info').style.display = 'block';
+                    document.getElementById('centerButton').style.display = 'block';
+                    
+                    // Atualizar as informações no painel
+                    document.querySelector('.telemetry-position').textContent = 
+                        `Posição: ${data.lat.toFixed(6)}, ${data.lon.toFixed(6)}`;
+                    document.querySelector('.telemetry-altitude').textContent = 
+                        `Altitude: ${data.alt.toFixed(1)} m`;
+                    document.querySelector('.telemetry-heading').textContent = 
+                        `Direção: ${data.hdg.toFixed(1)}°`;
+                    document.querySelector('.telemetry-speed').textContent = 
+                        `Velocidade: ${data.spd.toFixed(1)} km/h`;
+                    document.querySelector('.telemetry-satellites').textContent = 
+                        `Satélites: ${data.sat}`;
+                    document.querySelector('.telemetry-battery').textContent = 
+                        `Bateria: ${data.bat.toFixed(1)}V / ${data.rem}%`;
+                    
+                    // Criar ou atualizar o marcador de telemetria
+                    if (telemetryMarker) {
+                        // Atualizar posição do marcador existente
+                        telemetryMarker.setLatLng([data.lat, data.lon]);
+                        
+                        // Atualizar a rotação do ícone
+                        telemetryMarker.setIcon(createTelemetryIcon(data.hdg));
+                    } else {
+                        // Criar um novo marcador
+                        telemetryMarker = L.marker([data.lat, data.lon], {
+                            icon: createTelemetryIcon(data.hdg)
+                        }).addTo(map);
+                        
+                        // Adicionar popup com informações
+                        telemetryMarker.bindPopup(createTelemetryPopupContent(data));
+                    }
+                    
+                    // Centralizar o mapa na posição de telemetria se necessário
+                    if (centerOnTelemetry && data.gps) {
+                        map.setView([data.lat, data.lon], map.getZoom());
+                        centerOnTelemetry = false; // Centraliza apenas uma vez
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar dados de telemetria:', error);
+                });
+        }
+
+        // Função para criar o conteúdo do popup para aeronaves
+        function createPopupContent(aircraft) {
+            return `
+                <div class="aircraft-info">
+                    <strong>Callsign:</strong> ${aircraft.callsign || 'N/A'}<br>
+                    <strong>ICAO24:</strong> ${aircraft.icao24}<br>
+                    <strong>País de origem:</strong> ${aircraft.origin_country}<br>
+                    <strong>Altitude:</strong> ${aircraft.baro_altitude ? Math.round(aircraft.baro_altitude) + ' m' : 'N/A'}<br>
+                    <strong>Velocidade:</strong> ${aircraft.velocity ? Math.round(aircraft.velocity * 3.6) + ' km/h' : 'N/A'}<br>
+                    <strong>Direção:</strong> ${aircraft.true_track ? Math.round(aircraft.true_track) + '°' : 'N/A'}<br>
+                    <strong>No solo:</strong> ${aircraft.on_ground ? 'Sim' : 'Não'}
+                </div>
+            `;
+        }
+        
+        // Função para criar o conteúdo do popup para telemetria
+        function createTelemetryPopupContent(telemetry) {
+            return `
+                <div class="aircraft-info">
+                    <strong style="color: #d32f2f;">Telemetria MAVLink</strong><br>
+                    <strong>Latitude:</strong> ${telemetry.lat.toFixed(6)}<br>
+                    <strong>Longitude:</strong> ${telemetry.lon.toFixed(6)}<br>
+                    <strong>Altitude:</strong> ${telemetry.alt.toFixed(1)} m<br>
+                    <strong>Velocidade:</strong> ${telemetry.spd.toFixed(1)} km/h<br>
+                    <strong>Direção:</strong> ${telemetry.hdg.toFixed(1)}°<br>
+                    <strong>Satélites:</strong> ${telemetry.sat}<br>
+                    <strong>Bateria:</strong> ${telemetry.bat.toFixed(1)}V / ${telemetry.rem}%<br>
+                    <strong>Corrente:</strong> ${telemetry.cur.toFixed(2)}A<br>
+                    <strong>Consumo:</strong> ${telemetry.mah}mAh
+                </div>
+            `;
+        }
+
+        // Função com debounce para enviar a área visível
+        function debouncedUpdateAircraftData() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(updateAircraftData, 500);
+        }
+
+        // Eventos do mapa para capturar mudanças na área visível
+        map.on('moveend', debouncedUpdateAircraftData);
+        map.on('zoomend', debouncedUpdateAircraftData);
+        
+        // Botão para centralizar o mapa na posição de telemetria
+        document.getElementById('centerButton').addEventListener('click', function() {
+            if (lastTelemetryData && lastTelemetryData.lat && lastTelemetryData.lon) {
+                map.setView([lastTelemetryData.lat, lastTelemetryData.lon], map.getZoom());
+            }
+        });
+        
+        // Enviar a área visível inicial
+        setTimeout(updateAircraftData, 1000);
+        
+        // Atualizar os dados a cada 30 segundos
+        setInterval(updateAircraftData, 30000);
+        
+        // Atualizar os dados de telemetria a cada 2 segundos
+        setInterval(updateTelemetryData, 2000);
+        
+        // Carregar os dados iniciais
+        updateAircraftData();
+        updateTelemetryData();
+    </script>
+</body>
+</html>
