@@ -22,7 +22,8 @@ type TelemetryData struct {
 	BatteryCurrent   float64 `json:"cur"`
 	BatteryConsumed  uint16  `json:"mah"`
 	BatteryRemaining uint8   `json:"rem"`
-	GPSValid         bool    `json:"gps"`
+	Valid            bool    `json:"valid"`
+	Message          string  `json:"msg"`
 }
 
 type Aircraft interface {

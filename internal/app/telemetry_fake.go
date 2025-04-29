@@ -17,7 +17,8 @@ func (t TelemetryFake) GetTelemetryData() TelemetryData {
 		BatteryCurrent:   1.5,
 		BatteryConsumed:  1000,
 		BatteryRemaining: 80,
-		GPSValid:         true,
+		Valid:            true,
+		Message:          TELEMETRY_MESSAGE_OK,
 	}
 }
 

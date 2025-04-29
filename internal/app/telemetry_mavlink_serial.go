@@ -8,6 +8,7 @@ import (
 )
 
 const MAVLINK_SYSTEM_ID = 67
+const TELEMETRY_MESSAGE_OK = "OK"
 
 type TelemetryMavLinkSerial struct {
 	node gomavlib.Node
@@ -58,6 +59,13 @@ func (t *TelemetryMavLinkSerial) process(ctx context.Context) {
 		default:
 			// Process incoming messages
 			for evt := range t.node.Events() {
+				switch e := evt.(type) {
+				case *gomavlib.EventFrame:
+					t.processEvent(e)
+				case *gomavlib.EventChannelClose:
+					t.processEventClose(e)
+				}
+
 				frm, ok := evt.(*gomavlib.EventFrame)
 
 				if !ok || frm == nil {
@@ -70,24 +78,32 @@ func (t *TelemetryMavLinkSerial) process(ctx context.Context) {
 	}
 }
 
+func (t *TelemetryMavLinkSerial) processEventClose(evt *gomavlib.EventChannelClose) {
+	t.TelemetryData.Valid = false
+	t.TelemetryData.Message = evt.Error.Error()
+}
+
 func (t *TelemetryMavLinkSerial) processEvent(evt *gomavlib.EventFrame) {
 	switch msg := evt.Message().(type) {
 	case *ardupilotmega.MessageGlobalPositionInt:
 		t.TelemetryData.Latitude = float64(msg.Lat) / 1e7
 		t.TelemetryData.Longitude = float64(msg.Lon) / 1e7
-		t.TelemetryData.Altitude = float64(msg.Alt) / 1000.0 // t para metros
-		t.TelemetryData.Heading = float64(msg.Hdg) / 100.0   // centigraus para graus
+		t.TelemetryData.Altitude = float64(msg.Alt) / 1000.0
+		t.TelemetryData.Heading = float64(msg.Hdg) / 100.0
 	case *ardupilotmega.MessageVfrHud:
-		t.TelemetryData.GroundSpeed = float64(msg.Groundspeed) * 3.6 // m/s para km/h
-		t.TelemetryData.Altitude = float64(msg.Alt)                  // metros
+		t.TelemetryData.GroundSpeed = float64(msg.Groundspeed) / 100 * 3.6
+		t.TelemetryData.Altitude = float64(msg.Alt)
 	case *ardupilotmega.MessageSysStatus:
-		t.TelemetryData.BatteryVoltage = float64(msg.VoltageBattery) / 1000.0 // Converter de mV para V
-		t.TelemetryData.BatteryCurrent = float64(msg.CurrentBattery) / 100.0  // Converter de cA para A
-		t.TelemetryData.BatteryRemaining = uint8(msg.BatteryRemaining)        // Porcentagem de bateria restante
+		t.TelemetryData.BatteryVoltage = float64(msg.VoltageBattery) / 1000.0
+		t.TelemetryData.BatteryCurrent = float64(msg.CurrentBattery) / 100.0
+		t.TelemetryData.BatteryRemaining = uint8(msg.BatteryRemaining)
 	case *ardupilotmega.MessageGpsRawInt:
 		t.TelemetryData.NumSatellites = msg.SatellitesVisible
-		t.TelemetryData.GPSValid = msg.FixType >= 2 // 2 = 2D fix, 3 = 3D fix
+		t.TelemetryData.GroundSpeed = float64(msg.Vel) / 100 * 3.6
 	}
+
+	t.TelemetryData.Valid = true
+	t.TelemetryData.Message = TELEMETRY_MESSAGE_OK
 }
 
 func NewTelemetryMavLink(devicePath string, bauldRate int) Telemetry {

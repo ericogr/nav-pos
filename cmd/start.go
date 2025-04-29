@@ -80,6 +80,8 @@ func start(openBrowser bool, host string, port int, telemetryProvider string, te
 		Telemetry: telemetry,
 		Aircraft:  aircraft,
 	}
+
+	http.HandleFunc("/api/v1/session", handleRequests.HandleSession)
 	http.HandleFunc("/api/v1/aircraft", handleRequests.HandleAircraft)
 	http.HandleFunc("/api/v1/telemetry", handleRequests.HandleTelemetry)
 	fSys, _ := fs.Sub(staticFiles, "static")
@@ -94,9 +96,11 @@ func start(openBrowser bool, host string, port int, telemetryProvider string, te
 		}
 	}()
 
-	err = openUrlOnBrowser(serverURL)
-	if err != nil {
-		log.Printf("Error opening browser: %v", err)
+	if openBrowser {
+		err = openUrlOnBrowser(serverURL)
+		if err != nil {
+			log.Printf("Error opening browser: %v", err)
+		}
 	}
 
 	stop := make(chan os.Signal, 1)
