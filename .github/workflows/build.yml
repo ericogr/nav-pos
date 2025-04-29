@@ -49,6 +49,8 @@ jobs:
           build/*.zip
           build/*.tar.gz
   release:
+    permissions:
+      contents: write
     needs: build
     runs-on: ubuntu-latest
     steps:
