@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Navigation Position</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
         body {
             margin: 0;
@@ -114,7 +114,7 @@
     </div>
     <button class="center-button" id="centerButton" style="display: none;">Centralize</button>
 
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
         const initialCoordinates = {
             center: [(-23.607475903452663 + -24.270974395948752) / 2,
@@ -262,6 +262,7 @@
             })
             .then(data => {
                 if (!data || !data.lat || !data.lon) {
+                    telemetryMessage("no data");
                     return;
                 }
                 
@@ -277,7 +278,7 @@
                 document.querySelector('.telemetry-speed').textContent = `Speed: ${data.spd.toFixed(1)} km/h`;
                 document.querySelector('.telemetry-satellites').textContent = `Satellites: ${data.sat}`;
                 document.querySelector('.telemetry-battery').textContent = `Battery: ${data.bat.toFixed(1)}V / ${data.rem}%`;
-                document.querySelector('.telemetry-valid').textContent = `Valid: ${data.valid ? 'Yes' : 'No'}`;
+                telemetryMessage("valid");
                 
                 if (telemetryMarker) {
                     telemetryMarker.setLatLng([data.lat, data.lon]);
@@ -294,7 +295,7 @@
             })
             .catch(error => {
                 document.querySelector('.telemetry-title').textContent = error.message;
-                document.querySelector('.telemetry-valid').textContent = 'No';
+                telemetryMessage("error fetching telemetry data");
             });
         }
 
@@ -327,6 +328,10 @@
                     <strong>Consumption:</strong> ${telemetry.mah}mAh
                 </div>
             `;
+        }
+
+        function telemetryMessage(message) {
+            document.querySelector('.telemetry-valid').textContent = `Message: ${message}`;
         }
 
         function debouncedUpdateAircraftData() {

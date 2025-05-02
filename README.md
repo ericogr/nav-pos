@@ -1,6 +1,8 @@
 # Navigation Position
 A monitoring tool designed to help you detect nearby aircraft during your flight.
 
+![navpos](docs/navpos-main.png?raw=true "NavPos")
+
 ## Run
 Run in simulation mode for testing purposes:
 
