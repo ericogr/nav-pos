@@ -7,7 +7,8 @@ import (
 const HEADER_SESSION_ID = "X-Session-ID"
 
 type HandleRequests struct {
-	Telemetry app.Telemetry
-	Aircraft  app.Aircraft
-	SessionId int
+	Telemetry  app.Telemetry
+	Aircraft   app.Aircraft
+	MapService app.TileService
+	SessionId  int
 }

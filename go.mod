@@ -7,7 +7,11 @@ require (
 	go.bug.st/serial v1.6.4 // indirect
 )
 
-require github.com/spf13/cobra v1.9.1
+require (
+	github.com/aquilax/go-perlin v1.1.0
+	github.com/mattn/go-sqlite3 v1.14.28
+	github.com/spf13/cobra v1.9.1
+)
 
 require (
 	github.com/creack/goselect v0.1.2 // indirect

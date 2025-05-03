@@ -62,3 +62,7 @@ type OpenSkyResponse struct {
 	Time   int64           `json:"time"`
 	States [][]interface{} `json:"states"`
 }
+
+type TileService interface {
+	GetTile(x, y, z int) ([]byte, error)
+}

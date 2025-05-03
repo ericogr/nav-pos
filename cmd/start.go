@@ -23,13 +23,15 @@ import (
 var staticFiles embed.FS
 
 var (
-	openBrowser       bool
-	host              string
-	port              int
-	telemetryProvider string
-	telemetryParams   string
-	aircraftProvider  string
-	aircraftParams    string
+	openBrowser         bool
+	host                string
+	port                int
+	tileServiceProvider string
+	tileServiceParams   string
+	telemetryProvider   string
+	telemetryParams     string
+	aircraftProvider    string
+	aircraftParams      string
 )
 
 // startCmd represents the start command
@@ -47,9 +49,14 @@ func init() {
 	startCmd.Flags().BoolVarP(&openBrowser, "openBrowser", "o", true, "Open browser on start")
 	startCmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to bind the server to")
 	startCmd.Flags().StringVar(&host, "host", "localhost", "Host to bind the server to")
-	startCmd.Flags().StringVarP(&telemetryProvider, "tprovider", "t", "mavlinkserial", "Telemetry provider to use (ex fake, mavlinkserial)")
+
+	startCmd.Flags().StringVar(&tileServiceProvider, "tsprovider", "openstreetmap", "tile service provider to use (ex fake, openstreetmap, mbtiles)")
+	startCmd.Flags().StringVar(&tileServiceParams, "tsparams", "", "tile service provider parameters")
+
+	startCmd.Flags().StringVar(&telemetryProvider, "tprovider", "mavlinkserial", "Telemetry provider to use (ex fake, mavlinkserial)")
 	startCmd.Flags().StringVar(&telemetryParams, "tparams", "", "Telemetry provider parameters")
-	startCmd.Flags().StringVarP(&aircraftProvider, "aprovider", "a", "opensky", "Aircraft provider to use (ex fake, opensky)")
+
+	startCmd.Flags().StringVar(&aircraftProvider, "aprovider", "opensky", "Aircraft provider to use (ex fake, opensky)")
 	startCmd.Flags().StringVar(&aircraftParams, "aparams", "", "Aircraft provider parameters")
 }
 
@@ -57,33 +64,46 @@ func start(openBrowser bool, host string, port int, telemetryProvider string, te
 	ctx, cancel := context.WithCancel(context.Background())
 	serverURL := fmt.Sprintf("http://%s:%d", host, port)
 
+	tileServiceParamsMap, err := paramsStringToMap(tileServiceParams)
+	if err != nil {
+		log.Fatalf("Error converting params of tile service: %v", err)
+	}
+	tileService, err := app.CreateTileService(tileServiceProvider, tileServiceParamsMap)
+	if err != nil {
+		log.Fatalf("Error creating tile service provider: %v", err)
+	}
+
 	telemetryParamsMap, err := paramsStringToMap(telemetryParams)
 	if err != nil {
-		log.Fatalf("Erro ao converter parâmetros de telemetria: %v", err)
+		log.Fatalf("Error converting telemetry params: %v", err)
 	}
 	telemetry, err := app.CreateTelemetry(telemetryProvider, telemetryParamsMap)
 	if err != nil {
-		log.Fatalf("Erro ao criar o provedor de telemetria: %v", err)
+		log.Fatalf("Error creating telemetry provider: %v", err)
 	}
 	telemetry.Initialize(ctx)
 
 	aircraftParamsMap, err := paramsStringToMap(aircraftParams)
 	if err != nil {
-		log.Fatalf("Erro ao converter parâmetros de aeronave: %v", err)
+		log.Fatalf("Error converting aircraft params: %v", err)
 	}
 	aircraft, err := app.CreateAircraft(aircraftProvider, aircraftParamsMap)
 	if err != nil {
-		log.Fatalf("Erro ao criar o provedor de aeronaves: %v", err)
+		log.Fatalf("Error creating aircraft provider: %v", err)
 	}
 
 	handleRequests := v1.HandleRequests{
-		Telemetry: telemetry,
-		Aircraft:  aircraft,
+		Telemetry:  telemetry,
+		Aircraft:   aircraft,
+		MapService: tileService,
 	}
 
 	http.HandleFunc("/api/v1/session", handleRequests.HandleSession)
 	http.HandleFunc("/api/v1/aircraft", handleRequests.HandleAircraft)
 	http.HandleFunc("/api/v1/telemetry", handleRequests.HandleTelemetry)
+	http.HandleFunc("/api/v1/tile/", handleRequests.HandleTile)
+	// http.Handle("/api/v1/tiles/", http.StripPrefix("/api/v1/tiles", http.FileServer(http.Dir("/arquivos/git/go/src/github.com/ericogr/nav-pos/map"))))
+
 	fSys, _ := fs.Sub(staticFiles, "static")
 	http.Handle("/", http.FileServer(http.FS(fSys)))
 
