@@ -21,6 +21,18 @@ const (
 	seed        = 42
 )
 
+func (a *TileServiceFake) GetName() string {
+	return "fake"
+}
+
+func (a *TileServiceFake) GetContentType() string {
+	return "image/png"
+}
+
+func (a *TileServiceFake) GetEncoding() string {
+	return ""
+}
+
 func (m *TileServiceFake) GetTile(x, y, z int) ([]byte, error) {
 	img := image.NewRGBA(image.Rect(0, 0, tileSize, tileSize))
 	p := perlin.NewPerlin(perlinAlpha, perlinBeta, perlinN, int64(seed))

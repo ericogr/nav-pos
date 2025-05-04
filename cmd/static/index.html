@@ -268,9 +268,6 @@
                 maxZoom: 14
             };
 
-        const map = L.map('map').fitBounds(initialCoordinates.bounds);
-        L.vectorGrid.protobuf('/api/v1/tile/{z}/{x}/{y}.pbf', vectorTileOptions).addTo(map);
-
         const aircraftMarkers = {};
         const HEADER_SESSION_ID = 'X-Session-ID'
         
@@ -278,7 +275,19 @@
         let debounceTimer;
         let centerOnTelemetry = true;
         let lastTelemetryData = null;
-        let sessionId = 0;
+        let sessionInfo = {};
+
+        const globalMap = L.map('map').fitBounds(initialCoordinates.bounds);
+
+        function applyTileMap(map, name) {
+            if (name === 'mbtiles') {
+                L.vectorGrid.protobuf('/api/v1/tile/{z}/{x}/{y}.img', vectorTileOptions).addTo(map);
+                console.info('Using mbtiles');
+            }
+            else {
+                L.tileLayer('/api/v1/tile/{z}/{x}/{y}.img').addTo(map);
+            }
+        }
 
         function createAircraftIcon(heading, color) {
             return L.divIcon({
@@ -317,9 +326,17 @@
         
         function updateSessionId() {
             fetch('/api/v1/session')
-                .then(response => response.text())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Session error: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    sessionId = data;
+                    sessionInfo = data;
+                    console.info('Session ID:', sessionInfo.sessionId);
+
+                    applyTileMap(globalMap, sessionInfo.tileMapServiceName);
                 })
                 .catch(error => {
                     console.error('Error fetching session ID:', error);
@@ -327,7 +344,7 @@
         }
 
         function updateAircrafts() {
-            const bounds = map.getBounds();
+            const bounds = globalMap.getBounds();
             const bbox = {
                 min_latitude: bounds.getSouth(),
                 min_longitude: bounds.getWest(),
@@ -338,11 +355,11 @@
             document.querySelector('.area-info').textContent =
                 `Area: ${bbox.min_latitude.toFixed(4)},${bbox.min_longitude.toFixed(4)} to ${bbox.max_latitude.toFixed(4)},${bbox.max_longitude.toFixed(4)}`;
 
-            fetch('/api/v1/aircraft', {
+            fetch('/api/v1/radar', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    [HEADER_SESSION_ID]: sessionId
+                    [HEADER_SESSION_ID]: sessionInfo.sessionId
                 },
                 body: JSON.stringify(bbox)
             })
@@ -381,7 +398,7 @@
                     } else {
                         const marker = L.marker([aircraft.latitude, aircraft.longitude], {
                             icon: createBlueAircraftIcon(aircraft.true_track || 0)
-                        }).addTo(map);
+                        }).addTo(globalMap);
                         
                         marker.bindPopup(createPopupContent(aircraft));
                         
@@ -391,7 +408,7 @@
                 
                 Object.keys(aircraftMarkers).forEach(icao24 => {
                     if (!updatedAircrafts.has(icao24)) {
-                        map.removeLayer(aircraftMarkers[icao24]);
+                        globalMap.removeLayer(aircraftMarkers[icao24]);
                         delete aircraftMarkers[icao24];
                     }
                 });
@@ -404,7 +421,7 @@
         function updateTelemetry() {
             fetch('/api/v1/telemetry', {
                 headers: {
-                    [HEADER_SESSION_ID]: sessionId
+                    [HEADER_SESSION_ID]: sessionInfo.sessionId
                 }
             })
             .then(response => {
@@ -437,12 +454,12 @@
                     telemetryMarker.setLatLng([data.lat, data.lon]);
                     telemetryMarker.setIcon(createRedAircraftMeIcon(data.hdg));
                 } else {
-                    telemetryMarker = L.marker([data.lat, data.lon], {icon: createRedAircraftMeIcon(data.hdg)}).addTo(map);
+                    telemetryMarker = L.marker([data.lat, data.lon], {icon: createRedAircraftMeIcon(data.hdg)}).addTo(globalMap);
                     telemetryMarker.bindPopup(createTelemetryPopupContent(data));
                 }
                 
                 if (centerOnTelemetry && data.valid) {
-                    map.setView([data.lat, data.lon], map.getZoom());
+                    globalMap.setView([data.lat, data.lon], globalMap.getZoom());
                     centerOnTelemetry = false;
                 }
             })
@@ -492,12 +509,12 @@
             debounceTimer = setTimeout(updateAircrafts, 500);
         }
 
-        map.on('moveend', debouncedUpdateAircraftData);
-        map.on('zoomend', debouncedUpdateAircraftData);
+        globalMap.on('moveend', debouncedUpdateAircraftData);
+        globalMap.on('zoomend', debouncedUpdateAircraftData);
         
         document.getElementById('centerButton').addEventListener('click', function() {
             if (lastTelemetryData && lastTelemetryData.lat && lastTelemetryData.lon) {
-                map.setView([lastTelemetryData.lat, lastTelemetryData.lon], map.getZoom());
+                globalMap.setView([lastTelemetryData.lat, lastTelemetryData.lon], globalMap.getZoom());
             }
         });
         

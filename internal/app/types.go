@@ -5,7 +5,8 @@ import "context"
 const OPENSKY_NETWORK_API_STATES_ALL = "https://opensky-network.org/api/states/all"
 const HEADER_X_RATE_LIMIT_REMAINING = "X-Rate-Limit-Remaining"
 
-type Telemetry interface {
+type TelemetryService interface {
+	GetName() string
 	GetTelemetryData() TelemetryData
 	Initialize(ctx context.Context) error
 	Close() error
@@ -26,7 +27,8 @@ type TelemetryData struct {
 	Message          string  `json:"msg"`
 }
 
-type Aircraft interface {
+type RadarService interface {
+	GetName() string
 	GetAircrafts(bbox BoundingBox) ([]AircraftData, error)
 }
 
@@ -58,11 +60,9 @@ type AircraftData struct {
 	Category       int     `json:"category"`
 }
 
-type OpenSkyResponse struct {
-	Time   int64           `json:"time"`
-	States [][]interface{} `json:"states"`
-}
-
-type TileService interface {
+type TileMapService interface {
+	GetName() string
 	GetTile(x, y, z int) ([]byte, error)
+	GetContentType() string
+	GetEncoding() string
 }

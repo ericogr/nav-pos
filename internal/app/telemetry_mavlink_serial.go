@@ -18,6 +18,10 @@ type TelemetryMavLinkSerial struct {
 	TelemetryData TelemetryData
 }
 
+func (t *TelemetryMavLinkSerial) GetName() string {
+	return "mavlinkserial"
+}
+
 func (t *TelemetryMavLinkSerial) Initialize(ctx context.Context) error {
 	t.node = gomavlib.Node{
 		Endpoints: []gomavlib.EndpointConf{
@@ -106,7 +110,7 @@ func (t *TelemetryMavLinkSerial) processEvent(evt *gomavlib.EventFrame) {
 	t.TelemetryData.Message = TELEMETRY_MESSAGE_OK
 }
 
-func NewTelemetryMavLink(devicePath string, bauldRate int) Telemetry {
+func NewTelemetryMavLink(devicePath string, bauldRate int) TelemetryService {
 	return &TelemetryMavLinkSerial{
 		DevicePath: devicePath,
 		BaudRate:   bauldRate,

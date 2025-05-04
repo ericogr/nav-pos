@@ -5,6 +5,10 @@ import "context"
 type TelemetryFake struct {
 }
 
+func (t TelemetryFake) GetName() string {
+	return "fake"
+}
+
 func (t TelemetryFake) GetTelemetryData() TelemetryData {
 	return TelemetryData{
 		Latitude:         -23.5431,
@@ -30,6 +34,6 @@ func (t TelemetryFake) Close() error {
 	return nil
 }
 
-func NewFakeTelemetry() Telemetry {
+func NewFakeTelemetry() TelemetryService {
 	return &TelemetryFake{}
 }

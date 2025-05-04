@@ -2,7 +2,7 @@ package app
 
 import "fmt"
 
-func CreateAircraft(kind string, params map[string]string) (Aircraft, error) {
+func CreateRadarService(kind string, params map[string]string) (RadarService, error) {
 	switch kind {
 	case "fake":
 		return &AircraftFake{}, nil
@@ -12,6 +12,6 @@ func CreateAircraft(kind string, params map[string]string) (Aircraft, error) {
 			Password: params["password"],
 		}, nil
 	default:
-		return nil, fmt.Errorf("unknown aircraft provider: %s", kind)
+		return nil, fmt.Errorf("unknown radar service: %s", kind)
 	}
 }

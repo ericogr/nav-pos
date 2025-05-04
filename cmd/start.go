@@ -23,15 +23,15 @@ import (
 var staticFiles embed.FS
 
 var (
-	openBrowser         bool
-	host                string
-	port                int
-	tileServiceProvider string
-	tileServiceParams   string
-	telemetryProvider   string
-	telemetryParams     string
-	aircraftProvider    string
-	aircraftParams      string
+	openBrowser            bool
+	host                   string
+	port                   int
+	tileMapServiceName     string
+	tileMapServiceParams   string
+	telemetryServiceName   string
+	telemetryServiceParams string
+	radarServiceName       string
+	radarServiceParams     string
 )
 
 // startCmd represents the start command
@@ -39,7 +39,7 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the application",
 	Run: func(cmd *cobra.Command, args []string) {
-		start(openBrowser, host, port, telemetryProvider, telemetryParams, aircraftProvider, aircraftParams)
+		start(openBrowser, host, port, tileMapServiceName, tileMapServiceParams, telemetryServiceName, telemetryServiceParams, radarServiceName, radarServiceParams)
 	},
 }
 
@@ -50,59 +50,58 @@ func init() {
 	startCmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to bind the server to")
 	startCmd.Flags().StringVar(&host, "host", "localhost", "Host to bind the server to")
 
-	startCmd.Flags().StringVar(&tileServiceProvider, "tsprovider", "openstreetmap", "tile service provider to use (ex fake, openstreetmap, mbtiles)")
-	startCmd.Flags().StringVar(&tileServiceParams, "tsparams", "", "tile service provider parameters")
+	startCmd.Flags().StringVar(&tileMapServiceName, "tmservice", "openstreetmap", "tile map service to use (ex fake, openstreetmap, mbtiles)")
+	startCmd.Flags().StringVar(&tileMapServiceParams, "tmsparams", "", "tile map service parameters")
 
-	startCmd.Flags().StringVar(&telemetryProvider, "tprovider", "mavlinkserial", "Telemetry provider to use (ex fake, mavlinkserial)")
-	startCmd.Flags().StringVar(&telemetryParams, "tparams", "", "Telemetry provider parameters")
+	startCmd.Flags().StringVar(&telemetryServiceName, "tservice", "mavlinkserial", "Telemetry service to use (ex fake, mavlinkserial)")
+	startCmd.Flags().StringVar(&telemetryServiceParams, "tsparams", "", "Telemetry service parameters")
 
-	startCmd.Flags().StringVar(&aircraftProvider, "aprovider", "opensky", "Aircraft provider to use (ex fake, opensky)")
-	startCmd.Flags().StringVar(&aircraftParams, "aparams", "", "Aircraft provider parameters")
+	startCmd.Flags().StringVar(&radarServiceName, "rservice", "opensky", "Radar service to use (ex fake, opensky)")
+	startCmd.Flags().StringVar(&radarServiceParams, "rsparams", "", "Radar service parameters")
 }
 
-func start(openBrowser bool, host string, port int, telemetryProvider string, telemetryParams string, aircraftProvider string, aircraftParams string) {
+func start(openBrowser bool, host string, port int, tileMapServiceName, tileMapServiceParams, telemetryServiceName, telemetryServiceParams, radarServiceName, radarServiceParams string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	serverURL := fmt.Sprintf("http://%s:%d", host, port)
 
-	tileServiceParamsMap, err := paramsStringToMap(tileServiceParams)
+	tileMapServiceParamsMap, err := paramsStringToMap(tileMapServiceParams)
 	if err != nil {
 		log.Fatalf("Error converting params of tile service: %v", err)
 	}
-	tileService, err := app.CreateTileService(tileServiceProvider, tileServiceParamsMap)
+	tileMapService, err := app.CreateTileMapService(tileMapServiceName, tileMapServiceParamsMap)
 	if err != nil {
-		log.Fatalf("Error creating tile service provider: %v", err)
+		log.Fatalf("Error creating tile service: %v", err)
 	}
 
-	telemetryParamsMap, err := paramsStringToMap(telemetryParams)
+	telemetryServiceParamsMap, err := paramsStringToMap(telemetryServiceParams)
 	if err != nil {
 		log.Fatalf("Error converting telemetry params: %v", err)
 	}
-	telemetry, err := app.CreateTelemetry(telemetryProvider, telemetryParamsMap)
+	telemetryService, err := app.CreateTelemetryService(telemetryServiceName, telemetryServiceParamsMap)
 	if err != nil {
-		log.Fatalf("Error creating telemetry provider: %v", err)
+		log.Fatalf("Error creating telemetry service: %v", err)
 	}
-	telemetry.Initialize(ctx)
+	telemetryService.Initialize(ctx)
 
-	aircraftParamsMap, err := paramsStringToMap(aircraftParams)
+	radarServiceParamsMap, err := paramsStringToMap(radarServiceParams)
 	if err != nil {
-		log.Fatalf("Error converting aircraft params: %v", err)
+		log.Fatalf("Error converting radar params: %v", err)
 	}
-	aircraft, err := app.CreateAircraft(aircraftProvider, aircraftParamsMap)
+	radarService, err := app.CreateRadarService(radarServiceName, radarServiceParamsMap)
 	if err != nil {
-		log.Fatalf("Error creating aircraft provider: %v", err)
+		log.Fatalf("Error creating radar service: %v", err)
 	}
 
 	handleRequests := v1.HandleRequests{
-		Telemetry:  telemetry,
-		Aircraft:   aircraft,
-		MapService: tileService,
+		TelemetryService: telemetryService,
+		RadarService:     radarService,
+		TileMapService:   tileMapService,
 	}
 
 	http.HandleFunc("/api/v1/session", handleRequests.HandleSession)
-	http.HandleFunc("/api/v1/aircraft", handleRequests.HandleAircraft)
+	http.HandleFunc("/api/v1/radar", handleRequests.HandleRadar)
 	http.HandleFunc("/api/v1/telemetry", handleRequests.HandleTelemetry)
-	http.HandleFunc("/api/v1/tile/", handleRequests.HandleTile)
-	// http.Handle("/api/v1/tiles/", http.StripPrefix("/api/v1/tiles", http.FileServer(http.Dir("/arquivos/git/go/src/github.com/ericogr/nav-pos/map"))))
+	http.HandleFunc("/api/v1/tile/", handleRequests.HandleTileMap)
 
 	fSys, _ := fs.Sub(staticFiles, "static")
 	http.Handle("/", http.FileServer(http.FS(fSys)))
@@ -148,8 +147,6 @@ func openUrlOnBrowser(url string) error {
 }
 
 func paramsStringToMap(params string) (map[string]string, error) {
-	// Implementar a lógica para converter a string de parâmetros em um mapa
-	// Exemplo: "param1=value1,param2=value2" -> map[string]string{"param1": "value1", "param2": "value2"}
 	paramsMap := make(map[string]string)
 	if len(params) > 0 {
 		pairs := strings.Split(params, ",")

@@ -9,10 +9,19 @@ import (
 type TileServiceOpenStreetMap struct {
 }
 
+func (a *TileServiceOpenStreetMap) GetName() string {
+	return "openstreetmap"
+}
+
+func (a *TileServiceOpenStreetMap) GetContentType() string {
+	return "image/png"
+}
+
+func (a *TileServiceOpenStreetMap) GetEncoding() string {
+	return ""
+}
+
 func (m *TileServiceOpenStreetMap) GetTile(x, y, z int) ([]byte, error) {
-	// OpenStreetMap tiles are served over HTTP, so we can use a simple HTTP GET request
-	// to fetch the tile image. The URL format is:
-	// https://tile.openstreetmap.org/{z}/{x}/{y}.png
 	url := fmt.Sprintf("https://tile.openstreetmap.org/%d/%d/%d.png", z, x, y)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

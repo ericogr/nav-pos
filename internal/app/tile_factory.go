@@ -2,7 +2,7 @@ package app
 
 import "fmt"
 
-func CreateTileService(kind string, params map[string]string) (TileService, error) {
+func CreateTileMapService(kind string, params map[string]string) (TileMapService, error) {
 	switch kind {
 	case "fake":
 		return &TileServiceFake{}, nil
@@ -18,6 +18,6 @@ func CreateTileService(kind string, params map[string]string) (TileService, erro
 			databaseLocation: databaseLocation,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unknown tile service provider: %s", kind)
+		return nil, fmt.Errorf("unknown tile map service: %s", kind)
 	}
 }

@@ -3,7 +3,11 @@ package app
 type AircraftFake struct {
 }
 
-func (a AircraftFake) GetAircrafts(bbox BoundingBox) ([]AircraftData, error) {
+func (a *AircraftFake) GetName() string {
+	return "fake"
+}
+
+func (a *AircraftFake) GetAircrafts(bbox BoundingBox) ([]AircraftData, error) {
 	aircrafts := []AircraftData{
 		{
 			Icao24:         "e49446",

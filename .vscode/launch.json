@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Fake",
+            "name": "Launch All Fake",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -14,16 +14,16 @@
                 "start",
                 "--host=localhost",
                 "--port=8080",
-                "--tsprovider=fake",
+                "--tmservice=fake",
+                "--tmsparams=",
+                "--tservice=fake",
                 "--tsparams=",
-                "--tprovider=fake",
-                "--tparams=",
-                "--aprovider=fake",
-                "--aparams=",
+                "--rservice=fake",
+                "--rsparams=",
             ]
         },
         {
-            "name": "Launch MBTiles",
+            "name": "Launch All Fake but openstreetmap",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -32,12 +32,30 @@
                 "start",
                 "--host=localhost",
                 "--port=8080",
-                "--tsprovider=mbtiles",
-                "--tsparams=databaseLocation=map/maptiler-osm-2020-02-10-v3.11-planet.mbtiles",
-                "--tprovider=fake",
-                "--tparams=",
-                "--aprovider=fake",
-                "--aparams=",
+                "--tmservice=openstreetmap",
+                "--tmsparams=",
+                "--tservice=fake",
+                "--tsparams=",
+                "--rservice=fake",
+                "--rsparams=",
+            ]
+        },
+        {
+            "name": "Launch All Fake but mbtiles",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "start",
+                "--host=localhost",
+                "--port=8080",
+                "--tmservice=mbtiles",
+                "--tmsparams=databaseLocation=map/maptiler-osm-2020-02-10-v3.11-planet.mbtiles",
+                "--tservice=fake",
+                "--tsparams=",
+                "--rservice=fake",
+                "--rsparams=",
             ]
         },
         {
@@ -48,8 +66,8 @@
             "program": "${workspaceFolder}/main.go",
             "args": [
                 "start",
-                "--tparams=device=/dev/ttyUSB0,baudrate=115200",
-                "--aparams=",
+                "--tsparams=device=/dev/ttyUSB0,baudrate=115200",
+                "--rsparams=",
             ]
         }
     ]

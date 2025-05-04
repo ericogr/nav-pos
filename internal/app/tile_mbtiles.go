@@ -10,6 +10,18 @@ type TileServiceMbtiles struct {
 	databaseLocation string
 }
 
+func (a *TileServiceMbtiles) GetName() string {
+	return "mbtiles"
+}
+
+func (a *TileServiceMbtiles) GetContentType() string {
+	return "application/x-protobuf"
+}
+
+func (a *TileServiceMbtiles) GetEncoding() string {
+	return "gzip"
+}
+
 func (m *TileServiceMbtiles) GetTile(x, y, z int) ([]byte, error) {
 	db, err := sql.Open("sqlite3", m.databaseLocation)
 	if err != nil {

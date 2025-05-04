@@ -18,13 +18,13 @@
 ### Run in simulation mode for testing purposes:
 
 ```bash
-./navpos start --host=localhost --port=8080 --tsprovider=fake --tprovider=fake --aprovider=fake
+./navpos start --host=localhost --port=8080 --tmservice=fake --tservice=fake --rservice=fake
 ```
 
 ### Run with a live telemetry source (e.g. via USB):
 
 ```bash
-./navpos start --host=localhost --port=8080 --tparams=device=/dev/ttyUSB0,baudrate=115200
+./navpos start --host=localhost --port=8080 --tsparams=device=/dev/ttyUSB0,baudrate=115200
 ```
 
 ## Offline Maps

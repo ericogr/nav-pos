@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func CreateTelemetry(kind string, params map[string]string) (Telemetry, error) {
+func CreateTelemetryService(kind string, params map[string]string) (TelemetryService, error) {
 	switch kind {
 	case "fake":
 		return &TelemetryFake{}, nil
@@ -28,6 +28,6 @@ func CreateTelemetry(kind string, params map[string]string) (Telemetry, error) {
 			BaudRate:   baudRateInt,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unknown telemetry provider: %s", kind)
+		return nil, fmt.Errorf("unknown telemetry service: %s", kind)
 	}
 }

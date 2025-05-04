@@ -15,6 +15,15 @@ type AircraftOpenSky struct {
 	Password string
 }
 
+type OpenSkyResponse struct {
+	Time   int64           `json:"time"`
+	States [][]interface{} `json:"states"`
+}
+
+func (a *AircraftOpenSky) GetName() string {
+	return "opensky"
+}
+
 func (a *AircraftOpenSky) GetAircrafts(bbox BoundingBox) ([]AircraftData, error) {
 	// Se temos uma área definida, adicionamos os parâmetros de bounding box
 	baseURL := OPENSKY_NETWORK_API_STATES_ALL
