@@ -50,13 +50,13 @@ func init() {
 	startCmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to bind the server to")
 	startCmd.Flags().StringVar(&host, "host", "localhost", "Host to bind the server to")
 
-	startCmd.Flags().StringVar(&tileMapServiceName, "tmservice", "openstreetmap", "tile map service to use (ex fake, openstreetmap, mbtiles)")
-	startCmd.Flags().StringVar(&tileMapServiceParams, "tmsparams", "", "tile map service parameters")
+	startCmd.Flags().StringVar(&tileMapServiceName, "tmservice", "openstreetmap", "tile map service to use (ex: fake, openstreetmap, mbtiles)")
+	startCmd.Flags().StringVar(&tileMapServiceParams, "tmsparams", "", "Tile map service parameters")
 
-	startCmd.Flags().StringVar(&telemetryServiceName, "tservice", "mavlinkserial", "Telemetry service to use (ex fake, mavlinkserial)")
+	startCmd.Flags().StringVar(&telemetryServiceName, "tservice", "mavlinkserial", "Telemetry service to use (ex: fake, mavlinkserial)")
 	startCmd.Flags().StringVar(&telemetryServiceParams, "tsparams", "", "Telemetry service parameters")
 
-	startCmd.Flags().StringVar(&radarServiceName, "rservice", "opensky", "Radar service to use (ex fake, opensky)")
+	startCmd.Flags().StringVar(&radarServiceName, "rservice", "opensky", "Radar service to use (ex: fake, opensky)")
 	startCmd.Flags().StringVar(&radarServiceParams, "rsparams", "", "Radar service parameters")
 }
 
@@ -106,12 +106,12 @@ func start(openBrowser bool, host string, port int, tileMapServiceName, tileMapS
 	fSys, _ := fs.Sub(staticFiles, "static")
 	http.Handle("/", http.FileServer(http.FS(fSys)))
 
-	// Iniciar o servidor
+	// start server
 	go func() {
 		log.Printf("Server started at %s", serverURL)
 		err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 		if err != nil {
-			log.Printf("Server error: %v", err)
+			log.Fatalf("Server error: %v", err)
 		}
 	}()
 
@@ -130,7 +130,6 @@ func start(openBrowser bool, host string, port int, tileMapServiceName, tileMapS
 	log.Println("Terminating server...")
 }
 
-// Função para abrir o navegador
 func openUrlOnBrowser(url string) error {
 	var cmd *exec.Cmd
 
